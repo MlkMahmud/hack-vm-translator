@@ -7,6 +7,10 @@ const instructions = {
     type: 'arithmetic',
   },
   comment: { pattern: /^\/\/.*$/, type: 'comment' },
+  funcDeclaration: {
+    pattern: /^function\s+(?<name>[a-zA-Z][\w$.]+)\s+(?<vars>\d+)\s*(\s+\/\/.*)?$/,
+    type: 'function_declaration',
+  },
   goTo: {
     pattern: /^(?<cmd>goto|if-goto)\s+(?<label>\w+([.$]\w+)*)(\s+\/\/.*)?$/,
     type: 'go_to',
@@ -52,6 +56,11 @@ export default class Translator {
       token.value = { op };
     } else if (line.match(instructions.comment.pattern)) {
       token.type = instructions.comment.type;
+    } else if (line.match(instructions.funcDeclaration.pattern)) {
+      const match = line.match(instructions.funcDeclaration.pattern);
+      const { name, vars } = match?.groups || {};
+      token.type = instructions.funcDeclaration.type;
+      token.value = { name, vars };
     } else if (line.match(instructions.goTo.pattern)) {
       const match = line.match(instructions.goTo.pattern);
       const { cmd, label } = match?.groups || {};
@@ -98,6 +107,11 @@ export default class Translator {
           code += `@SP\nM=M-1\nA=M\nD=M\nA=A-1\nD=M${symbol}D\nM=D\n\n`;
         }
         return code;
+      }
+
+      case instructions.funcDeclaration.type: {
+        const { name } = token.value;
+        return `(${name})\n`;
       }
 
       case instructions.goTo.type: {
