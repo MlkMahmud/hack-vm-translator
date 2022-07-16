@@ -1,0 +1,22 @@
+{
+  "name": "hack-vm-translator",
+  "version": "1.0.0",
+  "description": "A VM translator for the HACK computer.",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MlkMahmud/hack-vm-translator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MlkMahmud/hack-vm-translator/issues"
+  },
+  "homepage": "https://github.com/MlkMahmud/hack-vm-translator#readme",
+  "engines": {
+    "node": "18.6",
+    "npm": "8.13"
+  }
+}
