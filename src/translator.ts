@@ -4,6 +4,7 @@ import instructions from "./instructions";
 
 export default class Translator {
   private labelCounter = 0;
+  private scope = new Map<string, string>();
   private symbols = new Map<string, string | number>([
     ['constant', '@SP'],
     ['argument', '@ARG'],
@@ -32,6 +33,12 @@ export default class Translator {
       token.value = { op };
     } else if (line.match(instructions.comment.pattern)) {
       token.type = instructions.comment.type;
+    } else if  (line.match(instructions.funcCall.pattern)) {
+      const match = line.match(instructions.funcCall.pattern);
+      const { name, args } = match?.groups || {};
+      const returnrAddr = String(lineNum + 1);
+      token.type = instructions.funcCall.type;
+      token.value = { args, name, returnrAddr };
     } else if (line.match(instructions.funcDeclaration.pattern)) {
       const match = line.match(instructions.funcDeclaration.pattern);
       const { name, vars } = match?.groups || {};
@@ -84,6 +91,26 @@ export default class Translator {
           code += `@SP\nM=M-1\nA=M\nD=M\nA=A-1\nD=M${symbol}D\nM=D\n\n`;
         }
         return code;
+      }
+
+      case instructions.funcCall.type: {
+        const { name, args, returnrAddr } = token.value;
+        const vars = this.scope.get(name);
+        if (vars) {
+          const arg = 5 + Number(args) + Number(vars);
+          let code = '';
+          code += `@${returnrAddr}\nD=A\n@SP\nM=M+1\nA=M-1\nM=D\n`;
+          code += `@LCL\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n`;
+          code += `@ARG\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n`;
+          code += `@THIS\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n`;
+          code += `@THAT\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n`;
+          code += `@SP\nD=M\n@LCL\nM=D\n`;
+          code += `@${vars}\nD=A\n@SP\nM=M+D\n`;
+          code += `@SP\nD=M\n@${arg}\nD=D-A\n@ARG\nM=D\n`;
+          code += `@${name}\n0;JMP\n\n`;
+          return code;
+        }
+        throw new ReferenceError(`function ${name} is not defined`);
       }
 
       case instructions.funcDeclaration.type: {

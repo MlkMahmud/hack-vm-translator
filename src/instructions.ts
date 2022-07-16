@@ -4,6 +4,10 @@ const instructions: Instructions = {
     type: 'arithmetic',
   },
   comment: { pattern: /^\/\/.*$/, type: 'comment' },
+  funcCall: {
+    pattern: /^call\s+(?<name>[a-zA-z][\w$.]+)\s+(?<args>\d+)\s*(\s+\/\/.*)?$/,
+    type: 'funcCall',
+  },
   funcDeclaration: {
     pattern: /^function\s+(?<name>[a-zA-Z][\w$.]+)\s+(?<vars>\d+)\s*(\s+\/\/.*)?$/,
     type: 'funcDeclaration',

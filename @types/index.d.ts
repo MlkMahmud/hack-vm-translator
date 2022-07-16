@@ -1,5 +1,5 @@
 
-type Command = "arithmetic" | "comment" | "funcDeclaration" | "funcReturn" | "goTo" | "label" | "pop" | "push";
+type Command = "arithmetic" | "comment" | "funcCall" | "funcDeclaration" | "funcReturn" | "goTo" | "label" | "pop" | "push";
 
 type Instructions = Record<Command, {
   pattern: RegExp,
