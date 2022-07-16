@@ -11,6 +11,7 @@ const instructions = {
     pattern: /^(?<cmd>goto|if-goto)\s+(?<label>\w+([.$]\w+)*)(\s+\/\/.*)?$/,
     type: 'go_to',
   },
+  label: { pattern: /^label\s+(?<label>\w+([.$]\w+)*)(\s+\/\/.*)?$/, type: 'label' },
   pop: {
     pattern: /^pop\s+((?<segment>argument|local|this|that|temp|static)\s+(?<index>\d+)|pointer\s+(?<pointer>[01]))(\s+\/\/.*)?$/,
     type: 'pop',
@@ -56,6 +57,11 @@ export default class Translator {
       const { cmd, label } = match?.groups || {};
       token.type = instructions.goTo.type;
       token.value = { cmd, label };
+    } else if (line.match(instructions.label.pattern)) {
+      const match = line.match(instructions.label.pattern);
+      const { label } = match?.groups || {};
+      token.type = instructions.label.type;
+      token.value = { label };
     } else if (line.match(instructions.pop.pattern)) {
       const match = line.match(instructions.pop.pattern);
       const { segment, pointer, index } = match?.groups || {};
@@ -100,6 +106,11 @@ export default class Translator {
           return `@${label}\n0;JMP\n\n`;
         }
         return `@SP\nM=M-1\nA=M\nD=M\n@${label}\nD;JNE\n\n`;
+      }
+
+      case instructions.label.type: {
+        const { label } = token.value;
+        return `(${label})\n`;
       }
 
       case instructions.pop.type: {
