@@ -1,30 +1,6 @@
 import fs from "fs";
 import readline from "readline";
-
-const instructions = {
-  arithmetic: {
-    pattern: /^(?<op>add|sub|neg|eq|or|not|and|lt|gt)(\s+\/\/.*)?$/,
-    type: 'arithmetic',
-  },
-  comment: { pattern: /^\/\/.*$/, type: 'comment' },
-  funcDeclaration: {
-    pattern: /^function\s+(?<name>[a-zA-Z][\w$.]+)\s+(?<vars>\d+)\s*(\s+\/\/.*)?$/,
-    type: 'function_declaration',
-  },
-  goTo: {
-    pattern: /^(?<cmd>goto|if-goto)\s+(?<label>\w+([.$]\w+)*)(\s+\/\/.*)?$/,
-    type: 'go_to',
-  },
-  label: { pattern: /^label\s+(?<label>\w+([.$]\w+)*)(\s+\/\/.*)?$/, type: 'label' },
-  pop: {
-    pattern: /^pop\s+((?<segment>argument|local|this|that|temp|static)\s+(?<index>\d+)|pointer\s+(?<pointer>[01]))(\s+\/\/.*)?$/,
-    type: 'pop',
-  },
-  push: {
-    pattern: /^push\s+((?<segment>constant|argument|local|this|that|temp|static)\s+(?<index>\d+)|pointer\s+(?<pointer>[01]))(\s+\/\/.*)?$/,
-    type: 'push'
-  },
-};
+import instructions from "./instructions";
 
 export default class Translator {
   private labelCounter = 0;
@@ -61,6 +37,8 @@ export default class Translator {
       const { name, vars } = match?.groups || {};
       token.type = instructions.funcDeclaration.type;
       token.value = { name, vars };
+    } else if (line.match(instructions.funcReturn.pattern)) { 
+      token.type = instructions.funcReturn.type;
     } else if (line.match(instructions.goTo.pattern)) {
       const match = line.match(instructions.goTo.pattern);
       const { cmd, label } = match?.groups || {};
@@ -94,7 +72,6 @@ export default class Translator {
         let code = '';
         const { op } = token.value;
         const symbol = this.symbols.get(op) as string;
-        // single operand operators
         if (['neg', 'not'].includes(op)) {
           code += `@SP\nA=M-1\nM=${symbol}M\n\n`;
         } else if (['LT', 'EQ', 'GT'].includes(symbol)) {
@@ -112,6 +89,21 @@ export default class Translator {
       case instructions.funcDeclaration.type: {
         const { name } = token.value;
         return `(${name})\n`;
+      }
+
+      case instructions.funcReturn.type: {
+        let code = '';
+        code += `@ARG\nD=M\n@R13\nM=D\n`;
+        code += `@LCL\nD=M\n@5\nD=D-A\n@R14\nM=D\n`;
+        code += `@R14\nA=M\nD=M\n@R15\nM=D\n@R14\nM=M+1\n`;
+        code += `@R14\nA=M\nD=M\n@LCL\nM=D\n@R14\nM=M+1\n`;
+        code += `@R14\nA=M\nD=M\n@ARG\nM=D\n@R14\nM=M+1\n`;
+        code += `@R14\nA=M\nD=M\n@THIS\nM=D\n@R14\nM=M+1\n`;
+        code += `@R14\nA=M\nD=M\n@THAT\nM=D\n`;
+        code += `@SP\nA=M-1\nD=M\n@R13\nA=M\nM=D\n`;
+        code += `@R13\nD=M\n@SP\nM=D+1\n`;
+        code += `@R15\nA=M\n0;JMP\n`;
+        return code;
       }
 
       case instructions.goTo.type: {
