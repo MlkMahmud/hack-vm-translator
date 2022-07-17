@@ -36,9 +36,8 @@ export default class Translator {
     } else if  (line.match(instructions.funcCall.pattern)) {
       const match = line.match(instructions.funcCall.pattern);
       const { name, args } = match?.groups || {};
-      const returnrAddr = String(lineNum + 1);
       token.type = instructions.funcCall.type;
-      token.value = { args, name, returnrAddr };
+      token.value = { args, name };
     } else if (line.match(instructions.funcDeclaration.pattern)) {
       const match = line.match(instructions.funcDeclaration.pattern);
       const { name, vars } = match?.groups || {};
@@ -94,20 +93,22 @@ export default class Translator {
       }
 
       case instructions.funcCall.type: {
-        const { name, args, returnrAddr } = token.value;
+        const { name, args } = token.value;
         const vars = this.scope.get(name);
         if (vars) {
           const arg = 5 + Number(args) + Number(vars);
+          const returnAddr = `${name}$.${this.labelCounter++}`;
           let code = '';
-          code += `@${returnrAddr}\nD=A\n@SP\nM=M+1\nA=M-1\nM=D\n`;
+          code += `@${returnAddr}\nD=A\n@SP\nM=M+1\nA=M-1\nM=D\n`;
           code += `@LCL\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n`;
           code += `@ARG\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n`;
           code += `@THIS\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n`;
           code += `@THAT\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n`;
           code += `@SP\nD=M\n@LCL\nM=D\n`;
-          code += `@${vars}\nD=A\n@SP\nM=M+D\n`;
+          code += `@SP\nM=M+1\nA=M-1\nM=0\n`.repeat(+vars);
           code += `@SP\nD=M\n@${arg}\nD=D-A\n@ARG\nM=D\n`;
-          code += `@${name}\n0;JMP\n\n`;
+          code += `@${name}\n0;JMP\n`;
+          code += `(${returnAddr})\n\n`;
           return code;
         }
         throw new ReferenceError(`function ${name} is not defined`);
@@ -187,7 +188,30 @@ export default class Translator {
     }
   }
 
-  public translate(srcFile: string): Promise<void> {
+  private populateScope(srcFile: string): Promise<void> {
+    const reader = readline.createInterface({
+      input: fs.createReadStream(srcFile),
+    });
+
+    return new Promise((resolve) => {
+      let lineNum = 0;
+      reader.on('line', (data) => {
+        const line = data.trim();
+        if (line) {
+          const token = this.generateToken(line, lineNum);
+          if (token.type === instructions.funcDeclaration.type) {
+            const { name, vars} = token.value;
+            this.scope.set(name, vars);
+          }
+          if (token.type !== instructions.comment.type) lineNum++;
+        }
+      });
+      reader.on('close', resolve);
+    });
+  }
+
+  public async translate(srcFile: string): Promise<void> {
+    await this.populateScope(srcFile);
     const outFile = srcFile.replace('.vm', '.asm');
     const writeStream = fs.createWriteStream(outFile, { flags: 'w' });
     const reader = readline.createInterface({
