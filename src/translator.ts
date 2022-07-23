@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 import readline from "readline";
 import instructions from "./instructions";
 
@@ -24,7 +25,7 @@ export default class Translator {
   ]);
 
   private generateToken(line: string, lineNum: number) {
-    const token: Token = { type: "", value: {} };
+    const token: Token = { value: {} };
     if (line.match(instructions.arithmetic.pattern)) {
       const match = line.match(instructions.arithmetic.pattern);
       const { op } = match?.groups || {};
@@ -157,7 +158,7 @@ export default class Translator {
           const addr = `${Number(symbol) + Number(index)}`;
           code += `@${addr}\nD=A\n@R13\nM=D\n@SP\nM=M-1\nA=M\nD=M\n@R13\nA=M\nM=D\n\n`;
         } else if(segment === "static") {
-          code += `@SP\nM=M-1\nA=M\nD=M\n@${fileName}.${index}\nM=D\n\n`;
+          code += `@SP\nM=M-1\nA=M\nD=M\n@${fileName.replaceAll("/", ".")}.${index}\nM=D\n\n`;
         } else {
           code += `${symbol}\nD=M\n@${index}\nD=D+A\n@R13\nM=D\n@SP\nM=M-1\nA=M\nD=M\n@R13\nA=M\nM=D\n\n`;
         }
@@ -178,7 +179,7 @@ export default class Translator {
           const addr = `${Number(symbol) + Number(index)}`;
           code += `@${addr}\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n\n`;
         } else if (segment === "static") {
-          code += `@${fileName}.${index}\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n\n`;
+          code += `@${fileName.replaceAll("/", ".")}.${index}\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n\n`;
         } else {
           code += `${symbol}\nD=M\n@${index}\nA=D+A\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n\n`;
         }
@@ -215,8 +216,8 @@ export default class Translator {
 
   public async translate(srcFile: string): Promise<void> {
     await this.populateScope(srcFile);
-    const fileName = srcFile.replace('.vm', '');
-    const outFile = `${fileName}.asm`;
+    const fileName = path.basename(srcFile).replace(".vm", "");
+    const outFile = srcFile.replace('.vm', '.asm');
     const writeStream = fs.createWriteStream(outFile, { flags: 'w' });
     const reader = readline.createInterface({
       input: fs.createReadStream(srcFile),

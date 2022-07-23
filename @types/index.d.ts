@@ -6,4 +6,4 @@ type Instructions = Record<Command, {
   type: Command,
 }>
 
-type Token = { type: string, value: { [key: string]: string } };
+type Token = { type?: Command, value: { [key: string]: string } };
