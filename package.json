@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "A VM translator for the HACK computer.",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "translate": "ts-node src/index.ts"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MlkMahmud/hack-vm-translator.git"

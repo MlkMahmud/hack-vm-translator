@@ -11,7 +11,6 @@ export default class Translator {
     ['this', '@THIS'],
     ['that', '@THAT'],
     ['local', '@LCL'],
-    ['static', 16],
     ['temp', 5],
     ['add', '+'],
     ['sub', '-'],
@@ -72,7 +71,7 @@ export default class Translator {
   }
 
 
-  private generateCode(token: Token) {
+  private generateCode(token: Token, fileName: string) {
     switch (token.type) {
       case instructions.arithmetic.type: {
         let code = '';
@@ -154,9 +153,11 @@ export default class Translator {
         if (pointer) {
           symbol = pointer === '0' ? '@R3' : '@R4';
           code += `@SP\nM=M-1\nA=M\nD=M\n${symbol}\nM=D\n\n`;
-        } else if (['static', 'temp'].includes(segment)) {
+        } else if (segment == "temp") {
           const addr = `${Number(symbol) + Number(index)}`;
           code += `@${addr}\nD=A\n@R13\nM=D\n@SP\nM=M-1\nA=M\nD=M\n@R13\nA=M\nM=D\n\n`;
+        } else if(segment === "static") {
+          code += `@SP\nM=M-1\nA=M\nD=M\n@${fileName}.${index}\nM=D\n\n`;
         } else {
           code += `${symbol}\nD=M\n@${index}\nD=D+A\n@R13\nM=D\n@SP\nM=M-1\nA=M\nD=M\n@R13\nA=M\nM=D\n\n`;
         }
@@ -173,9 +174,11 @@ export default class Translator {
           code += `${symbol}\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n\n`;
         } else if (segment === 'constant') {
           code += `@${index}\nD=A\n${symbol}\nM=M+1\nA=M-1\nM=D\n\n`;
-        } else if (['static', 'temp'].includes(segment)) {
+        } else if (segment === "temp") {
           const addr = `${Number(symbol) + Number(index)}`;
           code += `@${addr}\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n\n`;
+        } else if (segment === "static") {
+          code += `@${fileName}.${index}\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n\n`;
         } else {
           code += `${symbol}\nD=M\n@${index}\nA=D+A\nD=M\n@SP\nM=M+1\nA=M-1\nM=D\n\n`;
         }
@@ -212,7 +215,8 @@ export default class Translator {
 
   public async translate(srcFile: string): Promise<void> {
     await this.populateScope(srcFile);
-    const outFile = srcFile.replace('.vm', '.asm');
+    const fileName = srcFile.replace('.vm', '');
+    const outFile = `${fileName}.asm`;
     const writeStream = fs.createWriteStream(outFile, { flags: 'w' });
     const reader = readline.createInterface({
       input: fs.createReadStream(srcFile),
@@ -226,7 +230,7 @@ export default class Translator {
           const token = this.generateToken(line, lineNum);
           if (token.type !== instructions.comment.type) {
             lineNum++;
-            const code = this.generateCode(token);
+            const code = this.generateCode(token, fileName);
             writeStream.write(code, (err) => {
               if (err) reject(err);
             });
