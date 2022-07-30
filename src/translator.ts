@@ -80,10 +80,10 @@ export default class Translator {
 
   /**
    * This function decodes the token object and generates the
-   * approriate ASM code based on the token's type property.
+   * appropriate ASM code based on the token's type property.
    * 
    * @param {object} token A token object containing a VM command type and its relevant arguments  
-   * @param {string} fileName The name of the VM file currently being translated 
+   * @param {string} fileName The name of the VM file being translated 
    * @returns {string} the generated ASM code
    */
 
@@ -211,7 +211,7 @@ export default class Translator {
   /**
    * Scans the VM source file for syntax errors and saves all function identifiers to a global scope.
    * 
-   * @param {string} srcFile - Path to .vm source file 
+   * @param {string} srcFile Path to .vm source file 
    * @returns {Promise<void>} 
    * 
    */
