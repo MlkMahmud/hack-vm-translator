@@ -24,7 +24,15 @@ export default class Translator {
     ['eq', 'EQ'],
   ]);
 
-  private parse(line: string, lineNum: number) {
+  /**
+   * 
+   * Reads a line of VM code and returns the command type and its arguments.
+   * 
+   * @param {string} line A line of vm code 
+   * @returns A token object containing the command type and its relevant arguments.
+   */
+
+  private parse(line: string) {
     const token: Token = { value: {} };
     if (line.match(instructions.arithmetic.pattern)) {
       const match = line.match(instructions.arithmetic.pattern);
@@ -33,22 +41,22 @@ export default class Translator {
       token.value = { op };
     } else if (line.match(instructions.comment.pattern)) {
       token.type = instructions.comment.type;
-    } else if  (line.match(instructions.funcCall.pattern)) {
-      const match = line.match(instructions.funcCall.pattern);
+    } else if  (line.match(instructions.call.pattern)) {
+      const match = line.match(instructions.call.pattern);
       const { name, args } = match?.groups || {};
-      token.type = instructions.funcCall.type;
+      token.type = instructions.call.type;
       token.value = { args, name };
-    } else if (line.match(instructions.funcDeclaration.pattern)) {
-      const match = line.match(instructions.funcDeclaration.pattern);
+    } else if (line.match(instructions.function.pattern)) {
+      const match = line.match(instructions.function.pattern);
       const { name, vars } = match?.groups || {};
-      token.type = instructions.funcDeclaration.type;
+      token.type = instructions.function.type;
       token.value = { name, vars };
-    } else if (line.match(instructions.funcReturn.pattern)) { 
-      token.type = instructions.funcReturn.type;
-    } else if (line.match(instructions.goTo.pattern)) {
-      const match = line.match(instructions.goTo.pattern);
+    } else if (line.match(instructions.return.pattern)) { 
+      token.type = instructions.return.type;
+    } else if (line.match(instructions.goto.pattern)) {
+      const match = line.match(instructions.goto.pattern);
       const { cmd, label } = match?.groups || {};
-      token.type = instructions.goTo.type;
+      token.type = instructions.goto.type;
       token.value = { cmd, label };
     } else if (line.match(instructions.label.pattern)) {
       const match = line.match(instructions.label.pattern);
@@ -65,14 +73,21 @@ export default class Translator {
       const { segment, pointer, index } = match?.groups || {};
       token.type = instructions.push.type;
       token.value = { segment, pointer, index };
-    } else {
-      throw new SyntaxError(`Invalid expression "${line}" at line ${lineNum}`);
     }
     return token;
   }
 
 
-  private generateCode(token: Token, fileName: string) {
+  /**
+   * This function decodes the token object and generates the
+   * approriate ASM code based on the token's type property.
+   * 
+   * @param {object} token A token object containing a VM command type and its relevant arguments  
+   * @param {string} fileName The name of the VM file currently being translated 
+   * @returns {string} the generated ASM code
+   */
+
+  private generateCode(token: Token, fileName: string): string {
     switch (token.type) {
       case instructions.arithmetic.type: {
         let code = '';
@@ -92,7 +107,7 @@ export default class Translator {
         return code;
       }
 
-      case instructions.funcCall.type: {
+      case instructions.call.type: {
         const { name, args } = token.value;
         const vars = this.scope.get(name);
         if (vars) {
@@ -114,12 +129,12 @@ export default class Translator {
         throw new ReferenceError(`function ${name} is not defined`);
       }
 
-      case instructions.funcDeclaration.type: {
+      case instructions.function.type: {
         const { name } = token.value;
         return `(${name})\n`;
       }
 
-      case instructions.funcReturn.type: {
+      case instructions.return.type: {
         let code = '';
         code += `@ARG\nD=M\n@R13\nM=D\n`;
         code += `@LCL\nD=M\n@5\nD=D-A\n@R14\nM=D\n`;
@@ -134,7 +149,7 @@ export default class Translator {
         return code;
       }
 
-      case instructions.goTo.type: {
+      case instructions.goto.type: {
         const { cmd, label } = token.value;
         if (cmd === 'goto') {
           return `@${label}\n0;JMP\n\n`;
@@ -192,23 +207,36 @@ export default class Translator {
     }
   }
 
+
+  /**
+   * Scans the VM source file for syntax errors and saves all function identifiers to a global scope.
+   * 
+   * @param {string} srcFile - Path to .vm source file 
+   * @returns {Promise<void>} 
+   * 
+   */
+
   private scan(srcFile: string): Promise<void> {
     const reader = readline.createInterface({
       input: fs.createReadStream(srcFile),
     });
 
     return new Promise((resolve) => {
-      let lineNum = 0;
+      let lineNum = 1;
       reader.on('line', (data) => {
         const line = data.trim();
         if (line) {
-          const token = this.parse(line, lineNum);
-          if (token.type === instructions.funcDeclaration.type) {
+          const token = this.parse(line);
+          if (!token.type) {
+            throw new SyntaxError(`Invalid expression "${line}" at line ${lineNum} in file: ${srcFile}`);
+          }
+
+          if (token.type === instructions.function.type) {
             const { name, vars} = token.value;
             this.scope.set(name, vars);
           }
-          if (token.type !== instructions.comment.type) lineNum++;
         }
+        lineNum++;
       });
       reader.on('close', resolve);
     });
@@ -224,13 +252,11 @@ export default class Translator {
     });
 
     return new Promise((resolve, reject) => {
-      let lineNum = 0;
       reader.on('line', (data) => {
         const line = data.trim();
         if (line) {
-          const token = this.parse(line, lineNum);
+          const token = this.parse(line);
           if (token.type !== instructions.comment.type) {
-            lineNum++;
             const code = this.generateCode(token, fileName);
             writeStream.write(code, (err) => {
               if (err) reject(err);

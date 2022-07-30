@@ -4,21 +4,21 @@ const instructions: Instructions = {
     type: 'arithmetic',
   },
   comment: { pattern: /^\/\/.*$/, type: 'comment' },
-  funcCall: {
+  call: {
     pattern: /^call\s+(?<name>[a-zA-z][\w$.]+)\s+(?<args>\d+)\s*(\s+\/\/.*)?$/,
-    type: 'funcCall',
+    type: 'call',
   },
-  funcDeclaration: {
+  function: {
     pattern: /^function\s+(?<name>[a-zA-Z][\w$.]+)\s+(?<vars>\d+)\s*(\s+\/\/.*)?$/,
-    type: 'funcDeclaration',
+    type: 'function',
   },
-  funcReturn: {
+  return: {
     pattern: /^return\s*(\s+\/\/.*)?$/,
-    type: 'funcReturn',
+    type: 'return',
   },
-  goTo: {
+  goto: {
     pattern: /^(?<cmd>goto|if-goto)\s+(?<label>\w+([.$]\w+)*)(\s+\/\/.*)?$/,
-    type: 'goTo',
+    type: 'goto',
   },
   label: { pattern: /^label\s+(?<label>\w+([.$]\w+)*)(\s+\/\/.*)?$/, type: 'label' },
   pop: {
