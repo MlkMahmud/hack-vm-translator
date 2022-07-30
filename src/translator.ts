@@ -24,7 +24,7 @@ export default class Translator {
     ['eq', 'EQ'],
   ]);
 
-  private generateToken(line: string, lineNum: number) {
+  private parse(line: string, lineNum: number) {
     const token: Token = { value: {} };
     if (line.match(instructions.arithmetic.pattern)) {
       const match = line.match(instructions.arithmetic.pattern);
@@ -192,7 +192,7 @@ export default class Translator {
     }
   }
 
-  private populateScope(srcFile: string): Promise<void> {
+  private scan(srcFile: string): Promise<void> {
     const reader = readline.createInterface({
       input: fs.createReadStream(srcFile),
     });
@@ -202,7 +202,7 @@ export default class Translator {
       reader.on('line', (data) => {
         const line = data.trim();
         if (line) {
-          const token = this.generateToken(line, lineNum);
+          const token = this.parse(line, lineNum);
           if (token.type === instructions.funcDeclaration.type) {
             const { name, vars} = token.value;
             this.scope.set(name, vars);
@@ -215,7 +215,7 @@ export default class Translator {
   }
 
   public async translate(srcFile: string): Promise<void> {
-    await this.populateScope(srcFile);
+    await this.scan(srcFile);
     const fileName = path.basename(srcFile).replace(".vm", "");
     const outFile = srcFile.replace('.vm', '.asm');
     const writeStream = fs.createWriteStream(outFile, { flags: 'w' });
@@ -228,7 +228,7 @@ export default class Translator {
       reader.on('line', (data) => {
         const line = data.trim();
         if (line) {
-          const token = this.generateToken(line, lineNum);
+          const token = this.parse(line, lineNum);
           if (token.type !== instructions.comment.type) {
             lineNum++;
             const code = this.generateCode(token, fileName);
